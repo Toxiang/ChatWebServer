@@ -9,6 +9,18 @@ services:
         ENABLE_PYODIDE: ${ENABLE_PYODIDE-false}
         VITE_SOURCEMAP: ${VITE_SOURCEMAP-false}
         HALO_RUNTIME_PROFILE: ${HALO_RUNTIME_PROFILE-main}
+        NPM_REGISTRY: ${NPM_REGISTRY-}
+        DEBIAN_MIRROR: ${DEBIAN_MIRROR-http://deb.debian.org/debian}
+        DEBIAN_SECURITY_MIRROR: ${DEBIAN_SECURITY_MIRROR-http://deb.debian.org/debian-security}
+        PGDG_APT_MIRROR: ${PGDG_APT_MIRROR-https://apt.postgresql.org/pub/repos/apt}
+        UV_DEFAULT_INDEX: ${UV_DEFAULT_INDEX-}
+        UV_INDEX_STRATEGY: ${UV_INDEX_STRATEGY-}
+        PIP_INDEX_URL: ${PIP_INDEX_URL-}
+        PIP_EXTRA_INDEX_URL: ${PIP_EXTRA_INDEX_URL-}
+        NPM_FETCH_RETRIES: ${NPM_FETCH_RETRIES-5}
+        NPM_FETCH_RETRY_FACTOR: ${NPM_FETCH_RETRY_FACTOR-2}
+        NPM_FETCH_RETRY_MINTIMEOUT: ${NPM_FETCH_RETRY_MINTIMEOUT-20000}
+        NPM_FETCH_RETRY_MAXTIMEOUT: ${NPM_FETCH_RETRY_MAXTIMEOUT-120000}
     image: ghcr.io/ztx888/halowebui:${WEBUI_DOCKER_TAG-main}
     container_name: open-webui
     volumes:

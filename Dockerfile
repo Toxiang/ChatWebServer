@@ -21,6 +21,18 @@ ARG USE_TIKTOKEN_ENCODING_NAME="cl100k_base"
 
 ARG BUILD_HASH=dev-build
 ARG HALO_RUNTIME_PROFILE=main
+ARG NPM_REGISTRY=""
+ARG DEBIAN_MIRROR=http://deb.debian.org/debian
+ARG DEBIAN_SECURITY_MIRROR=http://deb.debian.org/debian-security
+ARG PGDG_APT_MIRROR=https://apt.postgresql.org/pub/repos/apt
+ARG UV_DEFAULT_INDEX=""
+ARG UV_INDEX_STRATEGY=""
+ARG PIP_INDEX_URL=""
+ARG PIP_EXTRA_INDEX_URL=""
+ARG NPM_FETCH_RETRIES=5
+ARG NPM_FETCH_RETRY_FACTOR=2
+ARG NPM_FETCH_RETRY_MINTIMEOUT=20000
+ARG NPM_FETCH_RETRY_MAXTIMEOUT=120000
 # Override at your own risk - non-root configurations are untested
 ARG UID=0
 ARG GID=0
@@ -30,11 +42,22 @@ FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS frontend-build
 ARG BUILD_HASH
 ARG ENABLE_PYODIDE=false
 ARG VITE_SOURCEMAP=false
+ARG NPM_REGISTRY
+ARG NPM_FETCH_RETRIES
+ARG NPM_FETCH_RETRY_FACTOR
+ARG NPM_FETCH_RETRY_MINTIMEOUT
+ARG NPM_FETCH_RETRY_MAXTIMEOUT
 
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    if [ -n "$NPM_REGISTRY" ]; then npm config set registry "$NPM_REGISTRY"; fi \
+    && npm config set fetch-retries "$NPM_FETCH_RETRIES" \
+    && npm config set fetch-retry-factor "$NPM_FETCH_RETRY_FACTOR" \
+    && npm config set fetch-retry-mintimeout "$NPM_FETCH_RETRY_MINTIMEOUT" \
+    && npm config set fetch-retry-maxtimeout "$NPM_FETCH_RETRY_MAXTIMEOUT" \
+    && npm ci --no-audit --progress=false
 
 COPY src ./src
 COPY static ./static
@@ -67,6 +90,13 @@ ARG HALO_PG_CLIENT_MAJORS
 ARG UID
 ARG GID
 ARG HALO_RUNTIME_PROFILE
+ARG DEBIAN_MIRROR
+ARG DEBIAN_SECURITY_MIRROR
+ARG PGDG_APT_MIRROR
+ARG UV_DEFAULT_INDEX
+ARG UV_INDEX_STRATEGY
+ARG PIP_INDEX_URL
+ARG PIP_EXTRA_INDEX_URL
 
 ENV ENV=prod \
     PORT=8080 \
@@ -92,6 +122,10 @@ ENV ENV=prod \
     TIKTOKEN_CACHE_DIR="/app/backend/data/cache/tiktoken" \
     HF_HOME="/app/backend/data/cache/embedding/models" \
     HALO_RUNTIME_PROFILE=${HALO_RUNTIME_PROFILE} \
+    UV_DEFAULT_INDEX=${UV_DEFAULT_INDEX} \
+    UV_INDEX_STRATEGY=${UV_INDEX_STRATEGY} \
+    PIP_INDEX_URL=${PIP_INDEX_URL} \
+    PIP_EXTRA_INDEX_URL=${PIP_EXTRA_INDEX_URL} \
     HOME=/root
 
 WORKDIR /app/backend
@@ -99,6 +133,14 @@ WORKDIR /app/backend
 COPY ./backend/requirements ./requirements
 
 RUN set -eux; \
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then \
+        sed -i "s|http://deb.debian.org/debian|${DEBIAN_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+        sed -i "s|http://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" /etc/apt/sources.list.d/debian.sources; \
+    fi; \
+    if [ -f /etc/apt/sources.list ]; then \
+        sed -i "s|http://deb.debian.org/debian|${DEBIAN_MIRROR}|g" /etc/apt/sources.list; \
+        sed -i "s|http://deb.debian.org/debian-security|${DEBIAN_SECURITY_MIRROR}|g" /etc/apt/sources.list; \
+    fi; \
     extra_apt_packages=""; \
     build_apt_packages="gcc python3-dev"; \
     pg_client_packages=""; \
@@ -121,7 +163,7 @@ RUN set -eux; \
     curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
         https://www.postgresql.org/media/keys/ACCC4CF8.asc; \
     . /etc/os-release; \
-    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+    echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] ${PGDG_APT_MIRROR} ${VERSION_CODENAME}-pgdg main" \
         > /etc/apt/sources.list.d/pgdg.list; \
     apt-get update; \
     apt-get install -y --no-install-recommends ${pg_client_packages}; \
